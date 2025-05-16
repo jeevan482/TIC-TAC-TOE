@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tic-Tac-Toe: Mode Select + Sound + Animation</title>
+<style>
+  body {
+    background: #222;
+    color: #eee;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+  }
+  h1 {
+    margin-bottom: 15px;
+  }
+  #mode-select {
+    margin-bottom: 20px;
+  }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(3, 100px);
+    grid-template-rows: repeat(3, 100px);
+    gap: 15px;
+  }
+  .cell {
+    perspective: 600px;
+    cursor: pointer;
+  }
+  .flip-container {
+    width: 100px;
+    height: 100px;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 10px;
+    box-shadow: 0 6px 15px rgba(0,0,0,0.7);
+    background: #444;
+  }
+  .flip-container.flip {
+    transform: rotateY(180deg);
+  }
+  .front, .back {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    border-radius: 10px;
+    backface-visibility: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 5rem;
+    font-weight: 900;
+    user-select: none;
+  }
+  .front {
+    background: #444;
+    box-shadow: inset 0 0 8px #000;
+  }
+  .back {
+    background: #111;
+    color: #0ff;
+    transform: rotateY(180deg);
+    box-shadow: inset 0 0 20px #0ff;
+  }
+  #message {
+    margin-top: 25px;
+    font-size: 1.4rem;
+    min-height: 28px;
+  }
+  #resetBtn {
+    margin-top: 15px;
+    background: #0ff;
+    border: none;
+    color: #111;
+    font-weight: bold;
+    padding: 10px 25px;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  #resetBtn:hover {
+    background: #09c;
+    color: #fff;
+  }
+  select {
+    font-size: 1rem;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    background: #0ff;
+    color: #111;
+    font-weight: bold;
+    box-shadow: 0 2px 6px rgba(0,255,255,0.5);
+    transition: background 0.3s ease;
+  }
+  select:hover {
+    background: #09c;
+    color: white;
+  }
+</style>
+</head>
+<body>
+
+<h1>Tic-Tac-Toe</h1>
+
+<label for="mode">Choose Mode: </label>
+<select id="mode">
+  <option value="single">Single Player (vs AI)</option>
+  <option value="multi">Multiplayer (2 Players)</option>
+</select>
+
+<div id="board">
+  <!-- 9 cells -->
+  <div class="cell" data-index="0">
+    <div class="flip-container">
+      <div class="front"></div>
+      <div class="back"></div>
+    </div>
+  </div>
+  <div class="cell" data-index="1">
+    <div class="flip-container">
+      <div class="front"></div>
+      <div class="back"></div>
+    </div>
+  </div>
+  <div class="cell" data-index="2">
+    <div class="flip-container">
+      <div class="front"></div>
+      <div class="back"></div>
+    </div>
+  </div>
+  <div class="cell" data-index="3">
+    <div class="flip-container">
+      <div class="front"></div>
+      <div class="back"></div>
+    </div>
+  </div>
+  <div class="cell" data-index="4">
+    <div class="flip-container">
+      <div class="front"></div>
+      <div class="back"></div>
+    </div>
+  </div>
+  <div class="cell" data-index="5">
+    <div class="flip-container">
+      <div class="front"></div>
+      <div class="back"></div>
+    </div>
+  </div>
+  <div class="cell" data-index="6">
+    <div class="flip-container">
+      <div class="front"></div>
+      <div class="back"></div>
+    </div>
+  </div>
+  <div class="cell" data-index="7">
+    <div class="flip-container">
+      <div class="front"></div>
+      <div class="back"></div>
+    </div>
+  </div>
+  <div class="cell" data-index="8">
+    <div class="flip-container">
+      <div class="front"></div>
+      <div class="back"></div>
+    </div>
+  </div>
+</div>
+
+<div id="message">Your turn! Click any cell.</div>
+<button id="resetBtn">Reset Game</button>
+
+<!-- Sound Effects -->
+<audio id="sound-move" src="https://actions.google.com/sounds/v1/cartoon/pop.ogg"></audio>
+<audio id="sound-win" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+<audio id="sound-draw" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+
+<script>
+  const board = Array(9).fill(null); // null, 'X' or 'O'
+  const cells = document.querySelectorAll('.cell');
+  const message = document.getElementById('message');
+  const resetBtn = document.getElementById('resetBtn');
+  const modeSelect = document.getElementById('mode');
+
+  // Sounds
+  const soundMove = document.getElementById('sound-move');
+  const soundWin = document.getElementById('sound-win');
+  const soundDraw = document.getElementById('sound-draw');
+
+  const HUMAN = 'X';
+  const AI = 'O';
+
+  let gameOver = false;
+  let currentPlayer = HUMAN;
+  let gameMode = 'single'; // or 'multi'
+
+  // Winning combinations
+  const winCombos = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  function isWinner(bd, player) {
+    return winCombos.some(combo => combo.every(i => bd[i] === player));
+  }
+
+  function isDraw(bd) {
+    return bd.every(cell => cell !== null);
+  }
+
+  function flipCell(cell, mark) {
+    const flipContainer = cell.querySelector('.flip-container');
+    const backSide = flipContainer.querySelector('.back');
+    backSide.textContent = mark;
+    flipContainer.classList.add('flip');
+    soundMove.currentTime = 0;
+    soundMove.play();
+  }
+
+  function resetFlip(cell) {
+    const flipContainer = cell.querySelector('.flip-container');
+    flipContainer.classList.remove('flip');
+    const backSide = flipContainer.querySelector('.back');
+    backSide.textContent = '';
+  }
+
+  function updateMessage(text) {
+    message.textContent = text;
+  }
+
+  // Human play (either player 1 or player 2)
+  function humanPlay(index) {
+    if (gameOver || board[index] !== null) return;
+    board[index] = currentPlayer;
+    flipCell(cells[index], currentPlayer);
+
+    if (isWinner(board, currentPlayer)) {
+      updateMessage(`${currentPlayer} wins! 🎉`);
+      soundWin.play();
+      gameOver = true;
+      return;
+    }
+
+    if (isDraw(board)) {
+      updateMessage("It's a draw.");
+      soundDraw.play();
+      gameOver = true;
+      return;
+    }
+
+    if (gameMode === 'multi') {
+      // Switch player in multiplayer
+      currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      updateMessage(`Player ${currentPlayer}'s turn`);
+    } else {
+      // Single player: after human turn, AI plays
+      updateMessage("AI is thinking...");
+      currentPlayer = AI;
+      setTimeout(() => aiPlay(), 600);
+    }
+  }
+
+  // Minimax AI for tough single player
+  function aiPlay() {
+    if (gameOver) return;
+
+    function minimax(newBoard, player) {
+      if (isWinner(newBoard, HUMAN)) return { score: -10 };
+      if (isWinner(newBoard, AI)) return { score: 10 };
+      if (isDraw(newBoard)) return { score: 0 };
+
+      const moves = [];
+
+      for (let i = 0; i < 9; i++) {
+        if (newBoard[i] === null) {
+          const move = {};
+          move.index = i;
+          newBoard[i] = player;
+
+          if (player === AI) {
+            const result = minimax(newBoard, HUMAN);
+            move.score = result.score;
+          } else {
+            const result = minimax(newBoard, AI);
+            move.score = result.score;
+          }
+
+          newBoard[i] = null;
+          moves.push(move);
+        }
+      }
+
+      let bestMove;
+      if (player === AI) {
+        let bestScore = -Infinity;
+        for (const move of moves) {
+          if (move.score > bestScore) {
+            bestScore = move.score;
+            bestMove = move;
+          }
+        }
+      } else {
+        let bestScore = Infinity;
+        for (const move of moves) {
+          if (move.score < bestScore) {
+            bestScore = move.score;
+            bestMove = move;
+          }
+        }
+      }
+      return bestMove;
+    }
+
+    const bestMove = minimax(board, AI);
+    if (bestMove && bestMove.index !== undefined) {
+      board[bestMove.index] = AI;
+      flipCell(cells[bestMove.index], AI);
+
+      if (isWinner(board, AI)) {
+        updateMessage('AI wins! 🤖');
+        soundWin.play();
+        gameOver = true;
+        return;
+      }
+
+      if (isDraw(board)) {
+        updateMessage("It's a draw.");
+        soundDraw.play();
+        gameOver = true;
+        return;
+      }
+
+      currentPlayer = HUMAN;
+      updateMessage("Your turn! Click any cell.");
+    }
+  }
+
+  // Setup clicks
+  cells.forEach(cell => {
+    cell.addEventListener('click', () => {
+      if (gameOver) return;
+      if (gameMode === 'multi') {
+        humanPlay(parseInt(cell.dataset.index));
+      } else {
+        if (currentPlayer === HUMAN) {
+          humanPlay(parseInt(cell.dataset.index));
+        }
+      }
+    });
+  });
+
+  resetBtn.addEventListener('click', resetGame);
+
+  modeSelect.addEventListener('change', () => {
+    gameMode = modeSelect.value;
+    resetGame();
+    if (gameMode === 'multi') {
+      currentPlayer = HUMAN;
+      updateMessage(`Player ${currentPlayer}'s turn`);
+    } else {
+      currentPlayer = HUMAN;
+      updateMessage('Your turn! Click any cell.');
+    }
+  });
+
+  function resetGame() {
+    for (let i = 0; i < 9; i++) board[i] = null;
+    gameOver = false;
+    currentPlayer = HUMAN;
+    updateMessage(gameMode === 'multi' ? `Player ${currentPlayer}'s turn` : 'Your turn! Click any cell.');
+    cells.forEach(cell => resetFlip(cell));
+  }
+
+  // Initialize
+  resetGame();
+</script>
+
+</body>
+</html>
